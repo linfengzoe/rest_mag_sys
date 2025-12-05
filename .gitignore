@@ -1,0 +1,28 @@
+# Node.js & Vue 前端依赖
+node_modules/
+# 前端打包目录
+dist/
+# VSCode 编辑器配置
+.vscode/
+
+# Java 后端构建输出
+target/
+# IDEA/其他IDE配置
+.idea/
+*.iml
+
+# 日志文件
+*.log
+logs/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 上传目录（如有临时文件）
+upload/
+
+# 其他常见忽略
+.env
+.env.*
+.settings.xml
