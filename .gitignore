@@ -26,3 +26,6 @@ upload/
 .env
 .env.*
 .settings.xml
+
+# 项目压缩包
+rest_mag_sys.zip
