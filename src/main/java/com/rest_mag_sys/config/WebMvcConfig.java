@@ -42,7 +42,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/error",
                         "/upload/**",
                         "/user/uploadAvatar",
-                        "/dish/upload"
+                        "/dish/upload",
+                        "/test/**"
                 );
     }
 
@@ -70,4 +71,4 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/upload/**")
                 .addResourceLocations("file:" + absUploadPath);
     }
-} 
+}

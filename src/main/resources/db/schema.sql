@@ -1,4 +1,4 @@
--- 删除所有表（按外键依赖逆序删除）
+spring.sql.init.mode=embedded-- 删除所有表（按外键依赖逆序删除）
 DROP TABLE IF EXISTS review;
 DROP TABLE IF EXISTS order_detail;
 DROP TABLE IF EXISTS orders;
@@ -54,7 +54,9 @@ CREATE TABLE IF NOT EXISTS table_info (
     name VARCHAR(50) NOT NULL UNIQUE COMMENT '桌位名称',
     capacity INT NOT NULL COMMENT '座位数',
     status INT DEFAULT 1 COMMENT '状态',
-    location VARCHAR(100) COMMENT '位置'
+    location VARCHAR(100) COMMENT '位置',
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间'
 ) COMMENT='餐桌信息表';
 
 -- 订单表
