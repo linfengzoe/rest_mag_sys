@@ -53,9 +53,13 @@ service.interceptors.response.use(
    */
   response => {
     const res = response.data
+    const { config } = response
 
     // 如果自定义代码不是200，则判断为错误。
     if (res.code !== 200) {
+      if (config && config.skipErrorHandler) {
+        return res
+      }
       // 针对菜品/桌位等业务提示使用 warning，避免使用 error 的大红框
       if (res.msg && (res.msg.includes('Duplicate entry') || res.msg.includes('菜品') || res.msg.includes('桌') || res.msg.includes('桌位') || res.msg.includes('存在关联'))) {
         let warnMsg = res.msg;
@@ -102,6 +106,7 @@ service.interceptors.response.use(
   },
   error => {
     console.log('响应错误详情:', error) // 详细错误信息
+    let message = '请求失败'
     
     // 记录更多错误信息用于调试
     if (error.response) {
@@ -132,7 +137,7 @@ service.interceptors.response.use(
               router.push('/login')
             }
           })
-          break
+          return Promise.resolve({ code: 401, msg: message })
         case 403:
           message = '拒绝访问'
           break

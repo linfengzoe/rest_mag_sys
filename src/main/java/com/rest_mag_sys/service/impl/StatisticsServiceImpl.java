@@ -146,29 +146,24 @@ public class StatisticsServiceImpl implements StatisticsService {
         Map<String, Object> report = new HashMap<>();
 
         try {
-            String groupBy;
-            String dateFormat;
+            String groupExpr;
             switch (period.toLowerCase()) {
                 case "week":
-                    groupBy = "YEARWEEK(o.create_time, 1)";
-                    dateFormat = "CONCAT(YEAR(o.create_time), '-W', WEEK(o.create_time, 1))";
+                    groupExpr = "YEARWEEK(o.create_time, 1)";
                     break;
                 case "month":
-                    groupBy = "YEAR(o.create_time), MONTH(o.create_time)";
-                    dateFormat = "CONCAT(YEAR(o.create_time), '-', LPAD(MONTH(o.create_time), 2, '0'))";
+                    groupExpr = "DATE_FORMAT(o.create_time, '%Y-%m')";
                     break;
                 case "year":
-                    groupBy = "YEAR(o.create_time)";
-                    dateFormat = "YEAR(o.create_time)";
+                    groupExpr = "YEAR(o.create_time)";
                     break;
                 default: // day
-                    groupBy = "DATE(o.create_time)";
-                    dateFormat = "DATE(o.create_time)";
+                    groupExpr = "DATE(o.create_time)";
             }
 
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT ");
-            sql.append(dateFormat).append(" as period, ");
+            sql.append(groupExpr).append(" as period, ");
             sql.append("COUNT(*) as order_count, ");
             sql.append("SUM(o.amount) as total_sales, ");
             sql.append("AVG(o.amount) as average_order_value, ");
@@ -185,8 +180,8 @@ public class StatisticsServiceImpl implements StatisticsService {
                 params.add(endDate);
             }
 
-            sql.append(" GROUP BY ").append(groupBy);
-            sql.append(" ORDER BY ").append(groupBy).append(" DESC");
+            sql.append(" GROUP BY ").append(groupExpr);
+            sql.append(" ORDER BY ").append(groupExpr).append(" DESC");
             sql.append(" LIMIT 50");
 
             List<Map<String, Object>> salesData = jdbcTemplate.queryForList(sql.toString(), params.toArray());

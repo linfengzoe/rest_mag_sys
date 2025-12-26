@@ -5,6 +5,119 @@
       <p>餐厅经营数据统计分析</p>
     </div>
 
+    <!-- AI 统计助手 -->
+    <div class="ai-section">
+      <div class="ai-header">
+        <div>
+          <h3>AI 经营助手</h3>
+          <p>基于统计数据的智能解读与问答</p>
+        </div>
+        <div class="ai-actions">
+          <select v-model="aiReportType">
+            <option v-for="option in aiReportOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <button class="ai-btn" :disabled="aiLoading" @click="handleInterpret">
+            {{ aiLoading ? '解读中...' : '智能解读' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="ai-chat">
+        <div v-if="!aiMessages.length" class="ai-empty">
+          还没有对话记录，点击“智能解读”或输入问题开始。
+        </div>
+        <div v-for="message in aiMessages" :key="message.id" :class="['ai-message', message.role]">
+          <div class="ai-message-meta">
+            <span class="ai-role">{{ message.role === 'assistant' ? 'AI' : '你' }}</span>
+            <span class="ai-time">{{ message.time }}</span>
+          </div>
+          <div class="ai-message-content">
+            <template v-if="message.role === 'assistant'">
+              <div class="ai-cards">
+                <div
+                  v-for="(section, sectionIndex) in buildAiSections(message.content)"
+                  :key="`sec-${message.id}-${sectionIndex}`"
+                  class="ai-card"
+                >
+                  <div class="ai-card-title">{{ section.title }}</div>
+                  <div class="ai-card-body">
+                    <template v-for="(block, index) in section.blocks">
+                      <ul v-if="block.type === 'ul'" :key="`ul-${message.id}-${sectionIndex}-${index}`" class="ai-list">
+                        <li v-for="(item, itemIndex) in block.items" :key="`ul-${message.id}-${sectionIndex}-${index}-${itemIndex}`">
+                          <template v-for="(seg, segIndex) in item">
+                            <span v-if="seg.type === 'bold'" :key="`ulb-${message.id}-${sectionIndex}-${index}-${itemIndex}-${segIndex}`" class="ai-bold">
+                              {{ seg.text }}
+                            </span>
+                            <span v-else-if="seg.type === 'code'" :key="`ulc-${message.id}-${sectionIndex}-${index}-${itemIndex}-${segIndex}`" class="ai-code">
+                              {{ seg.text }}
+                            </span>
+                            <span v-else :key="`ult-${message.id}-${sectionIndex}-${index}-${itemIndex}-${segIndex}`">{{ seg.text }}</span>
+                          </template>
+                        </li>
+                      </ul>
+                      <ol v-else-if="block.type === 'ol'" :key="`ol-${message.id}-${sectionIndex}-${index}`" class="ai-list">
+                        <li v-for="(item, itemIndex) in block.items" :key="`ol-${message.id}-${sectionIndex}-${index}-${itemIndex}`">
+                          <template v-for="(seg, segIndex) in item">
+                            <span v-if="seg.type === 'bold'" :key="`olb-${message.id}-${sectionIndex}-${index}-${itemIndex}-${segIndex}`" class="ai-bold">
+                              {{ seg.text }}
+                            </span>
+                            <span v-else-if="seg.type === 'code'" :key="`olc-${message.id}-${sectionIndex}-${index}-${itemIndex}-${segIndex}`" class="ai-code">
+                              {{ seg.text }}
+                            </span>
+                            <span v-else :key="`olt-${message.id}-${sectionIndex}-${index}-${itemIndex}-${segIndex}`">{{ seg.text }}</span>
+                          </template>
+                        </li>
+                      </ol>
+                      <p v-else :key="`p-${message.id}-${sectionIndex}-${index}`" class="ai-paragraph">
+                        <template v-for="(seg, segIndex) in block.segments">
+                          <span v-if="seg.type === 'bold'" :key="`pb-${message.id}-${sectionIndex}-${index}-${segIndex}`" class="ai-bold">
+                            {{ seg.text }}
+                          </span>
+                          <span v-else-if="seg.type === 'code'" :key="`pc-${message.id}-${sectionIndex}-${index}-${segIndex}`" class="ai-code">
+                            {{ seg.text }}
+                          </span>
+                          <span v-else :key="`pt-${message.id}-${sectionIndex}-${index}-${segIndex}`">{{ seg.text }}</span>
+                        </template>
+                      </p>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              {{ message.content }}
+            </template>
+          </div>
+        </div>
+        <div v-if="aiLoading" class="ai-loading">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="loading-text">AI 正在分析...</span>
+        </div>
+        <div v-if="aiError" class="ai-error">{{ aiError }}</div>
+      </div>
+
+      <div class="ai-input">
+        <select v-model="aiScope">
+          <option value="overview">默认数据</option>
+          <option value="current">当前报表</option>
+          <option value="all">全量报表</option>
+        </select>
+        <input
+          v-model="aiQuestion"
+          type="text"
+          placeholder="输入你想了解的问题，如：本月销售下滑原因是什么？"
+          @keyup.enter="handleAsk"
+        />
+        <button class="ai-btn primary" :disabled="aiLoading || !aiQuestion.trim()" @click="handleAsk">
+          发送
+        </button>
+      </div>
+    </div>
+
     <!-- 数据概览卡片 -->
     <div class="dashboard-cards">
       <div class="card">
@@ -243,6 +356,7 @@
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -255,7 +369,9 @@ import {
   getEmployeePerformance,
   getHourlyOrderDistribution,
   getDishReviewRanking,
-  getTableUtilizationStatistics
+  getTableUtilizationStatistics,
+  interpretStatisticsReport,
+  askStatisticsQuestion
 } from '@/api/statistics'
 import * as echarts from 'echarts'
 
@@ -295,6 +411,26 @@ export default {
       salesChartInstance: null,
       dishChartInstance: null,
       showChart: true,
+
+      // AI 助手
+      aiReportType: 'dashboard',
+      aiReportOptions: [
+        { value: 'dashboard', label: '经营概览' },
+        { value: 'sales-summary', label: '销售汇总' },
+        { value: 'orders', label: '订单统计' },
+        { value: 'dish-ranking', label: '菜品排行' },
+        { value: 'customer-behavior', label: '顾客分析' },
+        { value: 'employee-performance', label: '员工绩效' },
+        { value: 'hourly-distribution', label: '时段分布' },
+        { value: 'monthly-trend', label: '月度趋势' },
+        { value: 'table-utilization', label: '餐桌统计' },
+        { value: 'dish-review-ranking', label: '评论排行' }
+      ],
+      aiScope: 'overview',
+      aiQuestion: '',
+      aiMessages: [],
+      aiLoading: false,
+      aiError: ''
     }
   },
   mounted() {
@@ -438,6 +574,253 @@ export default {
       if (!dateStr) return '-'
       return new Date(dateStr).toLocaleDateString()
     },
+
+    async handleInterpret() {
+      this.aiError = ''
+      this.aiLoading = true
+      const payload = this.buildInterpretPayload()
+      this.pushMessage('user', `解读报表：${this.getReportLabel(this.aiReportType)}`)
+      try {
+        const response = await interpretStatisticsReport(payload)
+        if (response.code === 200) {
+          this.pushMessage('assistant', response.data?.analysis || '暂无解读结果')
+        } else {
+          const errorText = response.msg || '解读失败，请稍后重试'
+          this.aiError = errorText
+          this.pushMessage('assistant', errorText)
+        }
+      } catch (error) {
+        console.error('LLM解读失败:', error)
+        const errorText = error?.response?.data?.msg || error?.message || '解读失败，请稍后重试'
+        this.aiError = errorText
+        this.pushMessage('assistant', this.aiError)
+      } finally {
+        this.aiLoading = false
+      }
+    },
+
+    async handleAsk() {
+      if (!this.aiQuestion.trim()) return
+      this.aiError = ''
+      this.aiLoading = true
+      const question = this.aiQuestion.trim()
+      this.pushMessage('user', question)
+      const payload = this.buildAskPayload(question)
+      this.aiQuestion = ''
+      try {
+        const response = await askStatisticsQuestion(payload)
+        if (response.code === 200) {
+          this.pushMessage('assistant', response.data?.answer || '暂无回答')
+        } else {
+          const errorText = response.msg || '问答失败，请稍后重试'
+          this.aiError = errorText
+          this.pushMessage('assistant', errorText)
+        }
+      } catch (error) {
+        console.error('LLM问答失败:', error)
+        const errorText = error?.response?.data?.msg || error?.message || '问答失败，请稍后重试'
+        this.aiError = errorText
+        this.pushMessage('assistant', this.aiError)
+      } finally {
+        this.aiLoading = false
+      }
+    },
+
+    buildInterpretPayload() {
+      return {
+        reportType: this.aiReportType,
+        startDate: this.startDate,
+        endDate: this.endDate,
+        limit: this.rankingLimit,
+        type: this.rankingType,
+        months: 12,
+        period: 'month'
+      }
+    },
+
+    buildAskPayload(question) {
+      return {
+        question,
+        reportTypes: this.resolveScopeReportTypes(),
+        startDate: this.startDate,
+        endDate: this.endDate,
+        limit: this.rankingLimit,
+        type: this.rankingType,
+        months: 12,
+        period: 'month'
+      }
+    },
+
+    resolveScopeReportTypes() {
+      if (this.aiScope === 'all') return ['all']
+      if (this.aiScope === 'current') {
+        const mapping = {
+          customer: 'customer-behavior',
+          employee: 'employee-performance',
+          time: 'hourly-distribution',
+          table: 'table-utilization'
+        }
+        return [mapping[this.activeTab] || 'dashboard']
+      }
+      return ['dashboard', 'sales-summary']
+    },
+
+    getReportLabel(value) {
+      const found = this.aiReportOptions.find(option => option.value === value)
+      return found ? found.label : value
+    },
+
+    pushMessage(role, content) {
+      this.aiMessages.push({
+        id: `${role}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        role,
+        content,
+        time: new Date().toLocaleTimeString()
+      })
+      this.$nextTick(() => {
+        const chat = this.$el.querySelector('.ai-chat')
+        if (chat) chat.scrollTop = chat.scrollHeight
+      })
+    },
+
+    formatAiContent(content) {
+      if (!content) return []
+      const lines = content.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && line !== '---' && line !== '***' && line !== '```')
+      const blocks = []
+      let listBuffer = null
+
+      const flushList = () => {
+        if (listBuffer) {
+          blocks.push(listBuffer)
+          listBuffer = null
+        }
+      }
+
+      const pushHeading = text => {
+        flushList()
+        blocks.push({ type: 'heading', segments: this.parseInline(text) })
+      }
+
+      const pushParagraph = text => {
+        flushList()
+        blocks.push({ type: 'paragraph', segments: this.parseInline(text) })
+      }
+
+      lines.forEach(line => {
+        if (line.startsWith('```')) {
+          return
+        }
+        if (line.startsWith('###')) {
+          pushHeading(line.replace(/^###\s*/, ''))
+          return
+        }
+        if (line.startsWith('##')) {
+          pushHeading(line.replace(/^##\s*/, ''))
+          return
+        }
+        if (line.startsWith('#')) {
+          pushHeading(line.replace(/^#\s*/, ''))
+          return
+        }
+        if (/^\*\*.+\*\*:?\s*$/.test(line)) {
+          pushHeading(line.replace(/^\*\*/, '').replace(/\*\*:?\s*$/, ''))
+          return
+        }
+        if (/^[-*]\s+/.test(line)) {
+          const item = line.replace(/^[-*]\s+/, '')
+          if (!listBuffer || listBuffer.type !== 'ul') {
+            flushList()
+            listBuffer = { type: 'ul', items: [] }
+          }
+          listBuffer.items.push(this.parseInline(item))
+          return
+        }
+        if (/^\d+\.\s+/.test(line)) {
+          const item = line.replace(/^\d+\.\s+/, '')
+          if (!listBuffer || listBuffer.type !== 'ol') {
+            flushList()
+            listBuffer = { type: 'ol', items: [] }
+          }
+          listBuffer.items.push(this.parseInline(item))
+          return
+        }
+        pushParagraph(line)
+      })
+
+      flushList()
+      return blocks
+    },
+
+    buildAiSections(content) {
+      const blocks = this.formatAiContent(content)
+      if (!blocks.length) {
+        return [{ title: '分析', blocks: [] }]
+      }
+
+      const sections = []
+      let current = null
+
+      const pushSection = title => {
+        current = { title, blocks: [] }
+        sections.push(current)
+      }
+
+      const normalizeTitle = text => {
+        let title = text.replace(/^[\d]+\.\s*/, '').trim()
+        const normalized = title.replace(/\s+/g, '')
+        const mapping = [
+          { key: '关键结论', label: '关键结论' },
+          { key: '结论', label: '关键结论' },
+          { key: '建议', label: '行动建议' },
+          { key: '风险', label: '风险提示' },
+          { key: '问题', label: '问题诊断' },
+          { key: '指标解读', label: '指标解读' },
+          { key: '解读', label: '指标解读' },
+          { key: '原因', label: '原因分析' },
+          { key: '摘要', label: '摘要' }
+        ]
+        const matched = mapping.find(item => normalized.includes(item.key))
+        return matched ? matched.label : title
+      }
+
+      blocks.forEach(block => {
+        if (block.type === 'heading') {
+          pushSection(normalizeTitle(block.segments.map(seg => seg.text).join('')))
+        } else {
+          if (!current) {
+            pushSection('分析')
+          }
+          current.blocks.push(block)
+        }
+      })
+
+      return sections
+    },
+
+    parseInline(text) {
+      const segments = []
+      const pattern = /(\*\*[^*]+\*\*|`[^`]+`)/g
+      let lastIndex = 0
+      let match
+      while ((match = pattern.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+          segments.push({ type: 'text', text: text.slice(lastIndex, match.index) })
+        }
+        const token = match[0]
+        if (token.startsWith('**')) {
+          segments.push({ type: 'bold', text: token.slice(2, -2) })
+        } else if (token.startsWith('`')) {
+          segments.push({ type: 'code', text: token.slice(1, -1) })
+        }
+        lastIndex = match.index + token.length
+      }
+      if (lastIndex < text.length) {
+        segments.push({ type: 'text', text: text.slice(lastIndex) })
+      }
+      return segments
+    },
     
     // 渲染最近7天销售趋势折线图
     renderSalesTrendChart() {
@@ -541,16 +924,16 @@ export default {
       };
       this.dishChartInstance.setOption(option);
     },
-    watch:{
-      showChart(val){
-        if(val){
-          this.$nextTick(()=>{
-            this.renderDishChart();
-            this.dishChartInstance && this.dishChartInstance.resize();
-          })
-        }
+  },
+  watch:{
+    showChart(val){
+      if(val){
+        this.$nextTick(()=>{
+          this.renderDishChart();
+          this.dishChartInstance && this.dishChartInstance.resize();
+        })
       }
-    },
+    }
   }
 }
 </script>
@@ -761,6 +1144,244 @@ export default {
   overflow: hidden;
 }
 
+/* AI 助手 */
+.ai-section {
+  margin-bottom: 30px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-header h3 {
+  margin: 0 0 6px 0;
+  color: #2c3e50;
+}
+
+.ai-header p {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 12px;
+}
+
+.ai-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-actions select,
+.ai-input select,
+.ai-input input {
+  border: 1px solid #e1e5ec;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.ai-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  background: #eef2f7;
+  color: #34495e;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.ai-btn.primary {
+  background: #409eff;
+  color: white;
+}
+
+.ai-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ai-chat {
+  background: #f9fbff;
+  border-radius: 8px;
+  padding: 14px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #edf2f7;
+}
+
+.ai-empty {
+  color: #9aa4af;
+  text-align: center;
+  font-size: 12px;
+  padding: 30px 0;
+}
+
+.ai-message {
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: white;
+  border: 1px solid #edf2f7;
+}
+
+.ai-message.user {
+  background: #f0f7ff;
+  border-color: #d8e9ff;
+}
+
+.ai-message-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #7f8c8d;
+  margin-bottom: 6px;
+}
+
+.ai-message-content {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: #2c3e50;
+  font-size: 13px;
+}
+
+.ai-heading {
+  margin: 10px 0 6px;
+  font-size: 14px;
+  color: #1f2d3d;
+}
+
+.ai-paragraph {
+  margin: 6px 0;
+  color: #2c3e50;
+}
+
+.ai-cards {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-card {
+  border: 1px solid #e8eef6;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(31, 45, 61, 0.06);
+}
+
+.ai-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2d3d;
+  margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-card-title::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #409eff;
+  display: inline-block;
+}
+
+.ai-card-body {
+  background: #f8fbff;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.ai-bold {
+  font-weight: 600;
+  color: #1f2d3d;
+}
+
+.ai-code {
+  font-family: "Courier New", monospace;
+  background: #eef2f7;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: 0 2px;
+}
+
+.ai-list {
+  margin: 6px 0 8px 18px;
+  color: #2c3e50;
+  padding-left: 12px;
+}
+
+.ai-list li {
+  margin: 4px 0;
+}
+
+.ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  color: #7f8c8d;
+  font-size: 12px;
+}
+
+.ai-loading .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #409eff;
+  animation: pulse 1s infinite ease-in-out;
+}
+
+.ai-loading .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.ai-loading .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.ai-loading .loading-text {
+  margin-left: 4px;
+}
+
+.ai-error {
+  color: #e74c3c;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.ai-input {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ai-input input {
+  flex: 1;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+}
+
 .tab-buttons {
   display: flex;
   border-bottom: 1px solid #eee;
@@ -853,6 +1474,21 @@ export default {
   .analysis-table th,
   .analysis-table td {
     padding: 8px 4px;
+  }
+
+  .ai-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ai-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .ai-input {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style> 

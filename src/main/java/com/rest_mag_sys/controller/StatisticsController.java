@@ -1,11 +1,15 @@
 package com.rest_mag_sys.controller;
 
 import com.rest_mag_sys.common.R;
+import com.rest_mag_sys.dto.StatisticsAskRequest;
+import com.rest_mag_sys.dto.StatisticsInterpretRequest;
+import com.rest_mag_sys.service.StatisticsLlmService;
 import com.rest_mag_sys.service.StatisticsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +24,9 @@ public class StatisticsController {
 
     @Autowired
     private StatisticsService statisticsService;
+
+    @Autowired
+    private StatisticsLlmService statisticsLlmService;
 
     /**
      * 获取订单统计数据
@@ -220,6 +227,46 @@ public class StatisticsController {
         } catch (Exception e) {
             log.error("获取菜品评论星级排行失败", e);
             return R.error("获取菜品评论星级排行失败");
+        }
+    }
+
+    /**
+     * LLM解读统计报表
+     * @param request 解读请求
+     * @return 解读结果
+     */
+    @PostMapping("/llm/interpret")
+    public R<Map<String, Object>> interpretReport(@RequestBody StatisticsInterpretRequest request) {
+        log.info("LLM解读统计报表，类型：{}", request.getReportType());
+        try {
+            Map<String, Object> result = statisticsLlmService.interpretReport(request);
+            return R.success(result);
+        } catch (IllegalArgumentException e) {
+            log.warn("LLM解读参数错误: {}", e.getMessage());
+            return R.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("LLM解读报表失败", e);
+            return R.error("LLM解读报表失败");
+        }
+    }
+
+    /**
+     * LLM统计问答
+     * @param request 问答请求
+     * @return 回答结果
+     */
+    @PostMapping("/llm/ask")
+    public R<Map<String, Object>> askQuestion(@Valid @RequestBody StatisticsAskRequest request) {
+        log.info("LLM统计问答，问题：{}", request.getQuestion());
+        try {
+            Map<String, Object> result = statisticsLlmService.answerQuestion(request);
+            return R.success(result);
+        } catch (IllegalArgumentException e) {
+            log.warn("LLM问答参数错误: {}", e.getMessage());
+            return R.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("LLM问答失败", e);
+            return R.error("LLM问答失败");
         }
     }
 } 

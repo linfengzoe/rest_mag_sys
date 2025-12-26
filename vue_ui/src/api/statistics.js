@@ -98,4 +98,26 @@ export function getSalesSummaryReport(params) {
     method: 'get',
     params
   })
-} 
+}
+
+// LLM解读统计报表
+export function interpretStatisticsReport(data) {
+  return request({
+    url: '/statistics/llm/interpret',
+    method: 'post',
+    data,
+    timeout: 60000,
+    skipErrorHandler: true
+  })
+}
+
+// LLM统计问答
+export function askStatisticsQuestion(data) {
+  return request({
+    url: '/statistics/llm/ask',
+    method: 'post',
+    data,
+    timeout: 60000,
+    skipErrorHandler: true
+  })
+}
