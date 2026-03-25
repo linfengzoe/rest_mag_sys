@@ -3,6 +3,7 @@ package com.rest_mag_sys.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rest_mag_sys.common.BaseContext;
 import com.rest_mag_sys.common.R;
+import com.rest_mag_sys.common.RequireRoles;
 import com.rest_mag_sys.dto.OrdersDTO;
 import com.rest_mag_sys.dto.PageQueryDTO;
 import com.rest_mag_sys.entity.Orders;
@@ -34,6 +35,7 @@ public class OrdersController {
      * @return 结果
      */
     @PostMapping("/submit")
+    @RequireRoles({"customer"})
     public R<String> submit(@RequestBody OrdersDTO ordersDTO) {
         log.info("提交订单：{}", ordersDTO);
         Long userId = BaseContext.getCurrentId();
@@ -48,6 +50,7 @@ public class OrdersController {
      * @return 分页结果
      */
     @GetMapping("/page")
+    @RequireRoles({"admin", "employee"})
     public R<Page<OrdersDTO>> page(PageQueryDTO pageQueryDTO) {
         log.info("分页查询订单，参数：{}", pageQueryDTO);
         try {
@@ -69,6 +72,7 @@ public class OrdersController {
      * @return 分页结果
      */
     @GetMapping("/userPage")
+    @RequireRoles({"customer"})
     public R<Page<OrdersDTO>> userPage(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
@@ -112,6 +116,7 @@ public class OrdersController {
      * @return 订单详情
      */
     @GetMapping("/details/{id}")
+    @RequireRoles({"admin", "employee", "customer"})
     public R<OrdersDTO> details(@PathVariable Long id) {
         log.info("查询订单详情：{}", id);
         try {
@@ -129,6 +134,7 @@ public class OrdersController {
      * @return 结果
      */
     @PutMapping("/accept/{id}")
+    @RequireRoles({"admin", "employee"})
     public R<String> accept(@PathVariable Long id) {
         log.info("接单：{}", id);
         boolean result = ordersService.accept(id);
@@ -141,6 +147,7 @@ public class OrdersController {
      * @return 结果
      */
     @PutMapping("/reject")
+    @RequireRoles({"admin", "employee"})
     public R<String> reject(@RequestBody Map<String, Object> map) {
         log.info("拒单：{}", map);
         Long id = Long.valueOf(map.get("id").toString());
@@ -155,6 +162,7 @@ public class OrdersController {
      * @return 结果
      */
     @PutMapping("/complete/{id}")
+    @RequireRoles({"admin", "employee"})
     public R<String> complete(@PathVariable Long id) {
         log.info("完成订单：{}", id);
         boolean result = ordersService.complete(id);
@@ -167,6 +175,7 @@ public class OrdersController {
      * @return 结果
      */
     @PutMapping("/cancel/{id}")
+    @RequireRoles({"customer", "admin", "employee"})
     public R<String> cancel(@PathVariable Long id) {
         log.info("取消订单请求，订单ID：{}，类型：{}", id, id.getClass().getSimpleName());
         try {
@@ -184,6 +193,7 @@ public class OrdersController {
      * @return 结果
      */
     @PutMapping("/cancel")
+    @RequireRoles({"customer", "admin", "employee"})
     public R<String> cancelByString(@RequestBody Map<String, Object> map) {
         log.info("取消订单请求（字符串ID）：{}", map);
         try {
@@ -241,6 +251,7 @@ public class OrdersController {
      * @return 分页结果
      */
     @GetMapping("/list")
+    @RequireRoles({"admin", "employee"})
     public R<Page<OrdersDTO>> list(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
@@ -280,6 +291,7 @@ public class OrdersController {
      * @return 结果
      */
     @PutMapping("/pay")
+    @RequireRoles({"customer"})
     public R<String> pay(@RequestBody Map<String, Object> map) {
         log.info("支付订单：{}", map);
         try {
@@ -298,6 +310,7 @@ public class OrdersController {
      * @return 统计数据
      */
     @GetMapping("/statistics")
+    @RequireRoles({"admin", "employee"})
     public R<Map<String, Object>> getOrderStatistics() {
         log.info("获取订单统计数据");
         try {
@@ -315,6 +328,7 @@ public class OrdersController {
      * @return 订单列表
      */
     @GetMapping("/customer/{customerId}")
+    @RequireRoles({"admin", "employee"})
     public R<Page<OrdersDTO>> getOrdersByCustomerId(@PathVariable Long customerId) {
         log.info("根据顾客ID获取订单列表，顾客ID：{}", customerId);
         try {

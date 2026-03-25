@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rest_mag_sys.common.BaseContext;
 import com.rest_mag_sys.common.R;
+import com.rest_mag_sys.common.RequireRoles;
 import com.rest_mag_sys.dto.CustomerProfileDTO;
 import com.rest_mag_sys.dto.PageQueryDTO;
 import com.rest_mag_sys.dto.UserDTO;
@@ -18,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.DigestUtils;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,12 +46,16 @@ public class CustomerController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     /**
      * 分页查询顾客列表
      * @param pageQueryDTO 分页查询参数
      * @return 分页结果
      */
     @GetMapping("/list")
+    @RequireRoles({"admin"})
     public R<Page<Map<String, Object>>> list(PageQueryDTO pageQueryDTO) {
         log.info("分页查询顾客，参数：{}", pageQueryDTO);
         try {
@@ -129,6 +134,7 @@ public class CustomerController {
      * @return 分页结果
      */
     @GetMapping("/page")
+    @RequireRoles({"admin"})
     public R<Page<Customer>> page(PageQueryDTO pageQueryDTO) {
         try {
             // 构建分页对象
@@ -154,6 +160,7 @@ public class CustomerController {
      * @return 顾客信息
      */
     @GetMapping("/{id}")
+    @RequireRoles({"admin"})
     public R<Customer> getById(@PathVariable Long id) {
         try {
             Customer customer = customerMapper.selectById(id);
@@ -172,6 +179,7 @@ public class CustomerController {
      * @return 更新结果
      */
     @PutMapping("/profile")
+    @RequireRoles({"customer"})
     public R<String> updateCustomerProfile(@RequestBody CustomerProfileDTO customerProfileDTO) {
         try {
             Long userId = BaseContext.getCurrentId();
@@ -202,6 +210,7 @@ public class CustomerController {
      * @return 顾客完整信息
      */
     @GetMapping("/profile")
+    @RequireRoles({"customer"})
     public R<CustomerProfileDTO> getCustomerProfile() {
         try {
             Long userId = BaseContext.getCurrentId();
@@ -254,15 +263,14 @@ public class CustomerController {
      * @return 结果
      */
     @PostMapping
+    @RequireRoles({"admin"})
     public R<String> save(@RequestBody AddCustomerDTO dto) {
         log.info("新增顾客：{}", dto);
         try {
             // 1. 创建用户
             User user = new User();
             user.setUsername(dto.getUsername());
-            // 密码MD5加密
-            String encryptedPwd = DigestUtils.md5DigestAsHex(dto.getPassword().getBytes());
-            user.setPassword(encryptedPwd);
+            user.setPassword(passwordEncoder.encode(dto.getPassword()));
             user.setName(dto.getName());
             user.setPhone(dto.getPhone());
             user.setEmail(dto.getEmail());
@@ -300,6 +308,7 @@ public class CustomerController {
      * @return 结果
      */
     @PutMapping
+    @RequireRoles({"admin"})
     public R<String> update(@RequestBody CustomerUpdateDTO dto) {
         log.info("修改顾客：{}", dto);
 
@@ -361,6 +370,7 @@ public class CustomerController {
      * @return 结果
      */
     @DeleteMapping("/{id}")
+    @RequireRoles({"admin"})
     public R<String> delete(@PathVariable Long id) {
         log.info("删除顾客：{}", id);
         customerMapper.deleteById(id);
@@ -373,6 +383,7 @@ public class CustomerController {
      * @return 结果
      */
     @PutMapping("/status")
+    @RequireRoles({"admin"})
     public R<String> updateStatus(@RequestBody Customer customer) {
         log.info("更新顾客状态：{}", customer);
         customerMapper.updateById(customer);

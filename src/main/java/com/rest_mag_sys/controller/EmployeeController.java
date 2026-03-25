@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rest_mag_sys.common.BaseContext;
 import com.rest_mag_sys.common.R;
+import com.rest_mag_sys.common.RequireRoles;
 import com.rest_mag_sys.dto.EmployeeProfileDTO;
 import com.rest_mag_sys.dto.PageQueryDTO;
 import com.rest_mag_sys.entity.Employee;
@@ -13,7 +14,7 @@ import com.rest_mag_sys.mapper.UserMapper;
 import com.rest_mag_sys.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.DigestUtils;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,12 +44,16 @@ public class EmployeeController {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     /**
      * 分页查询员工列表
      * @param pageQueryDTO 分页查询参数
      * @return 分页结果
      */
     @GetMapping("/list")
+    @RequireRoles({"admin"})
     public R<Page<Map<String, Object>>> list(PageQueryDTO pageQueryDTO) {
         log.info("分页查询员工，参数：{}", pageQueryDTO);
         try {
@@ -126,6 +131,7 @@ public class EmployeeController {
      * @return 员工信息
      */
     @GetMapping("/{id}")
+    @RequireRoles({"admin"})
     public R<Employee> getById(@PathVariable Long id) {
         log.info("根据ID查询员工：{}", id);
         try {
@@ -143,6 +149,7 @@ public class EmployeeController {
      * @return 结果
      */
     @PostMapping
+    @RequireRoles({"admin"})
     public R<String> save(@RequestBody Map<String, Object> employeeData) {
         log.info("新增员工：{}", employeeData);
         try {
@@ -153,9 +160,7 @@ public class EmployeeController {
             // 密码加密
             String password = (String) employeeData.get("password");
             if (password != null && !password.trim().isEmpty()) {
-                String encryptedPassword = DigestUtils.md5DigestAsHex(password.getBytes());
-                user.setPassword(encryptedPassword);
-                log.info("密码加密：{} -> {}", password, encryptedPassword);
+                user.setPassword(passwordEncoder.encode(password));
             }
             
             user.setName((String) employeeData.get("name"));
@@ -209,6 +214,7 @@ public class EmployeeController {
      * @return 结果
      */
     @PutMapping
+    @RequireRoles({"admin"})
     public R<String> update(@RequestBody Map<String, Object> employeeData) {
         log.info("修改员工：{}", employeeData);
         try {
@@ -235,9 +241,7 @@ public class EmployeeController {
                     // 如果有新密码，进行加密
                     String newPassword = (String) employeeData.get("password");
                     if (newPassword != null && !newPassword.trim().isEmpty()) {
-                        String encryptedPassword = DigestUtils.md5DigestAsHex(newPassword.getBytes());
-                        user.setPassword(encryptedPassword);
-                        log.info("更新密码加密：{} -> {}", newPassword, encryptedPassword);
+                        user.setPassword(passwordEncoder.encode(newPassword));
                     }
                     
                     user.setUpdateTime(LocalDateTime.now());
@@ -276,6 +280,7 @@ public class EmployeeController {
      * @return 结果
      */
     @DeleteMapping("/{id}")
+    @RequireRoles({"admin"})
     public R<String> delete(@PathVariable Long id) {
         log.info("删除员工：{}", id);
         try {
@@ -306,6 +311,7 @@ public class EmployeeController {
      * @return 更新结果
      */
     @PutMapping("/profile")
+    @RequireRoles({"employee", "admin"})
     public R<String> updateEmployeeProfile(@RequestBody EmployeeProfileDTO employeeProfileDTO) {
         try {
             Long userId = BaseContext.getCurrentId();
@@ -340,6 +346,7 @@ public class EmployeeController {
      * @return 更新结果
      */
     @PutMapping("/profile/admin")
+    @RequireRoles({"admin"})
     public R<String> updateEmployeeByAdmin(@RequestBody EmployeeProfileDTO employeeProfileDTO) {
         try {
             Long currentUserId = BaseContext.getCurrentId();
@@ -377,6 +384,7 @@ public class EmployeeController {
      * @return 员工完整信息
      */
     @GetMapping("/profile")
+    @RequireRoles({"employee", "admin"})
     public R<EmployeeProfileDTO> getEmployeeProfile() {
         try {
             Long userId = BaseContext.getCurrentId();
