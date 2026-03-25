@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rest_mag_sys.common.BaseContext;
 import com.rest_mag_sys.common.JwtUtil;
 import com.rest_mag_sys.common.R;
+import com.rest_mag_sys.common.RequireRoles;
 import com.rest_mag_sys.dto.LoginDTO;
 import com.rest_mag_sys.dto.PageQueryDTO;
 import com.rest_mag_sys.dto.UserDTO;
@@ -98,6 +99,7 @@ public class UserController {
      * @return 分页结果
      */
     @GetMapping("/page")
+    @RequireRoles({"admin"})
     public R<Page<User>> page(PageQueryDTO pageQueryDTO) {
         Page<User> page = userService.pageQuery(pageQueryDTO);
         return R.success(page);
@@ -109,6 +111,7 @@ public class UserController {
      * @return 用户信息
      */
     @GetMapping("/{id}")
+    @RequireRoles({"admin"})
     public R<User> getById(@PathVariable Long id) {
         User user = userService.getById(id);
         if (user != null) {
@@ -123,6 +126,7 @@ public class UserController {
      * @return 更新结果
      */
     @PutMapping
+    @RequireRoles({"admin"})
     public R<String> update(@RequestBody UserDTO userDTO) {
         log.info("更新用户信息：{}", userDTO.getId());
         boolean result = userService.updateUser(userDTO);
@@ -135,6 +139,7 @@ public class UserController {
      * @return 删除结果
      */
     @DeleteMapping("/{id}")
+    @RequireRoles({"admin"})
     public R<String> delete(@PathVariable Long id) {
         log.info("删除用户：{}", id);
         boolean result = userService.removeById(id);
@@ -147,6 +152,7 @@ public class UserController {
      * @return 删除结果
      */
     @DeleteMapping("/batch")
+    @RequireRoles({"admin"})
     public R<String> deleteBatch(@RequestParam List<Long> ids) {
         log.info("批量删除用户：{}", ids);
         boolean result = userService.removeByIds(ids);
@@ -212,6 +218,7 @@ public class UserController {
      * @return
      */
     @GetMapping("/list")
+    @RequireRoles({"admin"})
     public R<Map<String, Object>> list(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
@@ -227,6 +234,7 @@ public class UserController {
      * @return
      */
     @PostMapping
+    @RequireRoles({"admin"})
     public R<String> save(@RequestBody UserDTO userDTO) {
         log.info("添加用户：{}", userDTO.getUsername());
         boolean result = userService.register(userDTO);
@@ -240,6 +248,7 @@ public class UserController {
      * @return 更新结果
      */
     @PostMapping("/status")
+    @RequireRoles({"admin"})
     public R<String> updateStatus(@RequestParam Long id, @RequestParam Integer status) {
         log.info("更新用户状态，用户ID：{}，状态：{}", id, status);
         User user = new User();
@@ -256,6 +265,7 @@ public class UserController {
      * @return 更新结果
      */
     @PostMapping("/status/batch")
+    @RequireRoles({"admin"})
     public R<String> updateStatusBatch(@RequestParam List<Long> ids, @RequestParam Integer status) {
         log.info("批量更新用户状态，用户ID：{}，状态：{}", ids, status);
         boolean result = userService.updateStatusBatch(ids, status);

@@ -1,6 +1,7 @@
 package com.rest_mag_sys.controller;
 
 import com.rest_mag_sys.common.R;
+import com.rest_mag_sys.common.RequireRoles;
 import com.rest_mag_sys.dto.StatisticsAskRequest;
 import com.rest_mag_sys.dto.StatisticsInterpretRequest;
 import com.rest_mag_sys.service.StatisticsLlmService;
@@ -20,6 +21,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/statistics")
 @Slf4j
+@RequireRoles({"admin", "employee"})
 public class StatisticsController {
 
     @Autowired

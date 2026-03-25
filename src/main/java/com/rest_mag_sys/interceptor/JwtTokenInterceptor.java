@@ -2,6 +2,7 @@ package com.rest_mag_sys.interceptor;
 
 import com.rest_mag_sys.common.BaseContext;
 import com.rest_mag_sys.common.JwtUtil;
+import com.rest_mag_sys.common.RequireRoles;
 import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,11 +10,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.method.HandlerMethod;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * JWT令牌拦截器
@@ -69,9 +73,29 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
 
             // 获取用户ID并存入ThreadLocal
             Long userId = Long.valueOf(claims.get("userId").toString());
+            String role = String.valueOf(claims.get("role")).toLowerCase(Locale.ROOT);
             log.info("JWT解析成功，请求路径: {}", requestPath);
-            
+
+            if (handler instanceof HandlerMethod) {
+                HandlerMethod handlerMethod = (HandlerMethod) handler;
+                RequireRoles requireRoles = handlerMethod.getMethodAnnotation(RequireRoles.class);
+                if (requireRoles == null) {
+                    requireRoles = handlerMethod.getBeanType().getAnnotation(RequireRoles.class);
+                }
+                if (requireRoles != null) {
+                    boolean allowed = Arrays.stream(requireRoles.value())
+                            .map(v -> v.toLowerCase(Locale.ROOT))
+                            .anyMatch(v -> v.equals(role));
+                    if (!allowed) {
+                        log.warn("权限不足，用户角色: {}, 请求路径: {}", role, requestPath);
+                        writeForbidden(response, "无权限访问该资源");
+                        return false;
+                    }
+                }
+            }
+
             BaseContext.setCurrentId(userId);
+            BaseContext.setCurrentRole(role);
             
             // 验证通过，放行
             return true;
@@ -79,6 +103,17 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
             log.error("JWT解析异常，请求路径: {}", requestPath, e);
             writeUnauthorized(response, "登录状态无效，请重新登录");
             return false;
+        }
+    }
+
+    private void writeForbidden(HttpServletResponse response, String message) {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType("application/json;charset=UTF-8");
+        try {
+            response.getWriter().write("{\"code\":403,\"msg\":\"" + message + "\"}");
+        } catch (IOException e) {
+            log.error("写入403响应失败", e);
         }
     }
 
