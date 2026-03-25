@@ -53,13 +53,8 @@ public class OrdersController {
     @RequireRoles({"admin", "employee"})
     public R<Page<OrdersDTO>> page(PageQueryDTO pageQueryDTO) {
         log.info("分页查询订单，参数：{}", pageQueryDTO);
-        try {
-            Page<OrdersDTO> page = ordersService.pageQuery(pageQueryDTO);
-            return R.success(page);
-        } catch (Exception e) {
-            log.error("查询订单列表异常", e);
-            return R.error("查询订单列表失败");
-        }
+        Page<OrdersDTO> page = ordersService.pageQuery(pageQueryDTO);
+        return R.success(page);
     }
 
     /**
@@ -81,33 +76,27 @@ public class OrdersController {
             @RequestParam(required = false) String endDate) {
         log.info("查询用户订单，页码：{}，每页记录数：{}，状态：{}，开始日期：{}，结束日期：{}", 
                 page, pageSize, status, startDate, endDate);
-        try {
-            Long userId = BaseContext.getCurrentId();
-            log.info("当前用户ID：{}", userId);
-            
-            if (userId == null) {
-                log.error("当前用户ID为null，可能是认证失败");
-                return R.error("用户认证失败");
-            }
-            
-            // 构造分页查询参数
-            PageQueryDTO pageQueryDTO = new PageQueryDTO();
-            pageQueryDTO.setPage(page);
-            pageQueryDTO.setPageSize(pageSize);
-            pageQueryDTO.setStatus(status);
-            if (startDate != null) {
-                pageQueryDTO.setBeginTime(startDate + " 00:00:00");
-            }
-            if (endDate != null) {
-                pageQueryDTO.setEndTime(endDate + " 23:59:59");
-            }
-            
-            Page<OrdersDTO> result = ordersService.userPageQuery(pageQueryDTO, userId);
-            return R.success(result);
-        } catch (Exception e) {
-            log.error("查询用户订单列表异常，用户ID：{}", BaseContext.getCurrentId(), e);
-            return R.error("查询用户订单列表失败：" + e.getMessage());
+        Long userId = BaseContext.getCurrentId();
+        log.info("当前用户ID：{}", userId);
+
+        if (userId == null) {
+            log.error("当前用户ID为null，可能是认证失败");
+            return R.error("用户认证失败");
         }
+
+        PageQueryDTO pageQueryDTO = new PageQueryDTO();
+        pageQueryDTO.setPage(page);
+        pageQueryDTO.setPageSize(pageSize);
+        pageQueryDTO.setStatus(status);
+        if (startDate != null) {
+            pageQueryDTO.setBeginTime(startDate + " 00:00:00");
+        }
+        if (endDate != null) {
+            pageQueryDTO.setEndTime(endDate + " 23:59:59");
+        }
+
+        Page<OrdersDTO> result = ordersService.userPageQuery(pageQueryDTO, userId);
+        return R.success(result);
     }
 
     /**
@@ -119,13 +108,8 @@ public class OrdersController {
     @RequireRoles({"admin", "employee", "customer"})
     public R<OrdersDTO> details(@PathVariable Long id) {
         log.info("查询订单详情：{}", id);
-        try {
-            OrdersDTO ordersDTO = ordersService.getOrderDetails(id);
-            return R.success(ordersDTO);
-        } catch (Exception e) {
-            log.error("查询订单详情异常", e);
-            return R.error("查询订单详情失败");
-        }
+        OrdersDTO ordersDTO = ordersService.getOrderDetails(id);
+        return R.success(ordersDTO);
     }
 
     /**
@@ -178,13 +162,8 @@ public class OrdersController {
     @RequireRoles({"customer", "admin", "employee"})
     public R<String> cancel(@PathVariable Long id) {
         log.info("取消订单请求，订单ID：{}，类型：{}", id, id.getClass().getSimpleName());
-        try {
-            boolean result = ordersService.cancelOrder(id);
-            return result ? R.success("取消成功") : R.error("取消失败");
-        } catch (Exception e) {
-            log.error("取消订单异常，订单ID：{}", id, e);
-            return R.error("取消失败");
-        }
+        boolean result = ordersService.cancelOrder(id);
+        return result ? R.success("取消成功") : R.error("取消失败");
     }
 
     /**
@@ -263,26 +242,21 @@ public class OrdersController {
         // 兼容旧参数id，新参数keyword
         String searchKey = StringUtils.hasText(keyword) ? keyword : id;
         log.info("查询订单列表，页码：{}，每页记录数：{}，关键字：{}，状态：{}，开始日期：{}，结束日期：{}", page, pageSize, searchKey, status, startDate, endDate);
-        try {
-            PageQueryDTO pageQueryDTO = new PageQueryDTO();
-            pageQueryDTO.setPage(page);
-            pageQueryDTO.setPageSize(pageSize);
-            if (StringUtils.hasText(searchKey)) {
-                pageQueryDTO.setKeyword(searchKey);
-            }
-            pageQueryDTO.setStatus(status);
-            if (StringUtils.hasText(startDate)) {
-                pageQueryDTO.setBeginTime(startDate + " 00:00:00");
-            }
-            if (StringUtils.hasText(endDate)) {
-                pageQueryDTO.setEndTime(endDate + " 23:59:59");
-            }
-            Page<OrdersDTO> pageResult = ordersService.pageQuery(pageQueryDTO);
-            return R.success(pageResult);
-        } catch (Exception e) {
-            log.error("查询订单列表异常", e);
-            return R.error("查询订单列表失败");
+        PageQueryDTO pageQueryDTO = new PageQueryDTO();
+        pageQueryDTO.setPage(page);
+        pageQueryDTO.setPageSize(pageSize);
+        if (StringUtils.hasText(searchKey)) {
+            pageQueryDTO.setKeyword(searchKey);
         }
+        pageQueryDTO.setStatus(status);
+        if (StringUtils.hasText(startDate)) {
+            pageQueryDTO.setBeginTime(startDate + " 00:00:00");
+        }
+        if (StringUtils.hasText(endDate)) {
+            pageQueryDTO.setEndTime(endDate + " 23:59:59");
+        }
+        Page<OrdersDTO> pageResult = ordersService.pageQuery(pageQueryDTO);
+        return R.success(pageResult);
     }
 
     /**
@@ -294,15 +268,10 @@ public class OrdersController {
     @RequireRoles({"customer"})
     public R<String> pay(@RequestBody Map<String, Object> map) {
         log.info("支付订单：{}", map);
-        try {
-            Long id = Long.valueOf(map.get("id").toString());
-            String paymentMethod = map.get("paymentMethod").toString();
-            boolean result = ordersService.payOrder(id, paymentMethod);
-            return result ? R.success("支付成功") : R.error("支付失败");
-        } catch (Exception e) {
-            log.error("支付订单异常", e);
-            return R.error("支付失败");
-        }
+        Long id = Long.valueOf(map.get("id").toString());
+        String paymentMethod = map.get("paymentMethod").toString();
+        boolean result = ordersService.payOrder(id, paymentMethod);
+        return result ? R.success("支付成功") : R.error("支付失败");
     }
 
     /**
@@ -313,13 +282,8 @@ public class OrdersController {
     @RequireRoles({"admin", "employee"})
     public R<Map<String, Object>> getOrderStatistics() {
         log.info("获取订单统计数据");
-        try {
-            Map<String, Object> statistics = ordersService.getStatistics();
-            return R.success(statistics);
-        } catch (Exception e) {
-            log.error("获取订单统计数据异常", e);
-            return R.error("获取统计数据失败");
-        }
+        Map<String, Object> statistics = ordersService.getStatistics();
+        return R.success(statistics);
     }
 
     /**
@@ -331,18 +295,13 @@ public class OrdersController {
     @RequireRoles({"admin", "employee"})
     public R<Page<OrdersDTO>> getOrdersByCustomerId(@PathVariable Long customerId) {
         log.info("根据顾客ID获取订单列表，顾客ID：{}", customerId);
-        try {
-            PageQueryDTO pageQueryDTO = new PageQueryDTO();
-            pageQueryDTO.setPage(1);
-            pageQueryDTO.setPageSize(100); // 设置一个较大的页面大小
-            
-            // 使用userPageQuery方法，它可以根据用户ID查询
-            Page<OrdersDTO> pageResult = ordersService.userPageQuery(pageQueryDTO, customerId);
-            return R.success(pageResult);
-        } catch (Exception e) {
-            log.error("根据顾客ID获取订单列表异常，顾客ID：{}", customerId, e);
-            return R.error("获取订单列表失败");
-        }
+        PageQueryDTO pageQueryDTO = new PageQueryDTO();
+        pageQueryDTO.setPage(1);
+        pageQueryDTO.setPageSize(100); // 设置一个较大的页面大小
+
+        // 使用userPageQuery方法，它可以根据用户ID查询
+        Page<OrdersDTO> pageResult = ordersService.userPageQuery(pageQueryDTO, customerId);
+        return R.success(pageResult);
     }
 
 } 

@@ -3,6 +3,10 @@ package com.rest_mag_sys.interceptor;
 import com.rest_mag_sys.common.BaseContext;
 import com.rest_mag_sys.common.JwtUtil;
 import com.rest_mag_sys.common.RequireRoles;
+import com.rest_mag_sys.entity.Orders;
+import com.rest_mag_sys.entity.Review;
+import com.rest_mag_sys.mapper.OrdersMapper;
+import com.rest_mag_sys.mapper.ReviewMapper;
 import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.method.HandlerMethod;
 
 import javax.servlet.http.HttpServletRequest;
@@ -17,6 +22,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Locale;
 
 /**
@@ -29,6 +35,12 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private OrdersMapper ordersMapper;
+
+    @Autowired
+    private ReviewMapper reviewMapper;
 
     /**
      * 拦截请求，验证令牌
@@ -92,6 +104,13 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
                         return false;
                     }
                 }
+
+                // 资源归属校验：顾客只能访问自己的订单/评价详情
+                if ("customer".equals(role) && !checkCustomerResourceOwnership(request, userId)) {
+                    log.warn("资源归属校验失败，用户ID: {}, 请求路径: {}", userId, requestPath);
+                    writeForbidden(response, "无权限访问他人资源");
+                    return false;
+                }
             }
 
             BaseContext.setCurrentId(userId);
@@ -104,6 +123,48 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
             writeUnauthorized(response, "登录状态无效，请重新登录");
             return false;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean checkCustomerResourceOwnership(HttpServletRequest request, Long userId) {
+        String requestPath = request.getRequestURI();
+        Object attrs = request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+        if (!(attrs instanceof Map)) {
+            return true;
+        }
+        Map<String, String> pathVariables = (Map<String, String>) attrs;
+
+        if (requestPath.startsWith("/orders/details/")) {
+            String idStr = pathVariables.get("id");
+            if (!StringUtils.hasLength(idStr)) {
+                return true;
+            }
+            Long orderId = Long.valueOf(idStr);
+            Orders order = ordersMapper.selectById(orderId);
+            return order != null && userId.equals(order.getUserId());
+        }
+
+        if (requestPath.startsWith("/review/order/")) {
+            String orderIdStr = pathVariables.get("orderId");
+            if (!StringUtils.hasLength(orderIdStr)) {
+                return true;
+            }
+            Long orderId = Long.valueOf(orderIdStr);
+            Orders order = ordersMapper.selectById(orderId);
+            return order != null && userId.equals(order.getUserId());
+        }
+
+        if (requestPath.matches("^/review/\\d+$")) {
+            String reviewIdStr = pathVariables.get("id");
+            if (!StringUtils.hasLength(reviewIdStr)) {
+                return true;
+            }
+            Long reviewId = Long.valueOf(reviewIdStr);
+            Review review = reviewMapper.selectById(reviewId);
+            return review != null && userId.equals(review.getUserId());
+        }
+
+        return true;
     }
 
     private void writeForbidden(HttpServletResponse response, String message) {

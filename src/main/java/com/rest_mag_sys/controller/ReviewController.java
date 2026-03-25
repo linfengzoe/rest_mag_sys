@@ -80,7 +80,7 @@ public class ReviewController {
      * @return 评价信息
      */
     @GetMapping("/{id}")
-    @RequireRoles({"admin", "employee"})
+    @RequireRoles({"admin", "employee", "customer"})
     public R<Review> getById(@PathVariable Long id) {
         log.info("根据ID查询评价：{}", id);
         Review review = reviewService.getById(id);
