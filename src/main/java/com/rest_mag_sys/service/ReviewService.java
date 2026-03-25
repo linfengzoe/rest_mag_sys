@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.rest_mag_sys.common.R;
 import com.rest_mag_sys.dto.PageQueryDTO;
+import com.rest_mag_sys.dto.ReviewDTO;
 import com.rest_mag_sys.entity.Review;
 
 import java.util.List;
@@ -20,6 +21,13 @@ public interface ReviewService extends IService<Review> {
      * @return 评论分页结果
      */
     Page<Review> pageQuery(PageQueryDTO pageQueryDTO);
+
+    /**
+     * 分页查询评价列表（带关联信息）
+     * @param pageQueryDTO 分页查询参数
+     * @return 评价分页结果
+     */
+    Page<ReviewDTO> pageQueryWithDetails(PageQueryDTO pageQueryDTO);
 
     /**
      * 根据订单ID查询评论

@@ -3,11 +3,11 @@ package com.rest_mag_sys.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rest_mag_sys.common.BaseContext;
 import com.rest_mag_sys.common.R;
+import com.rest_mag_sys.common.RequireRoles;
 import com.rest_mag_sys.dto.PageQueryDTO;
 import com.rest_mag_sys.dto.ReviewDTO;
 import com.rest_mag_sys.entity.Review;
 import com.rest_mag_sys.service.ReviewService;
-import com.rest_mag_sys.service.impl.ReviewServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +32,7 @@ public class ReviewController {
      * @return 结果
      */
     @PostMapping
+    @RequireRoles({"customer"})
     public R<String> save(@RequestBody Review review) {
         log.info("提交评价：{}", review);
         Long userId = BaseContext.getCurrentId();
@@ -46,17 +47,11 @@ public class ReviewController {
      * @return 分页结果
      */
     @GetMapping("/page")
+    @RequireRoles({"admin", "employee"})
     public R<Page<ReviewDTO>> page(PageQueryDTO pageQueryDTO) {
         log.info("分页查询评价，参数：{}", pageQueryDTO);
-        try {
-            // 使用强制类型转换来调用带关联信息的查询方法
-            ReviewServiceImpl reviewServiceImpl = (ReviewServiceImpl) reviewService;
-            Page<ReviewDTO> page = reviewServiceImpl.pageQueryWithDetails(pageQueryDTO);
-            return R.success(page);
-        } catch (Exception e) {
-            log.error("查询评价列表异常", e);
-            return R.error("查询评价列表失败");
-        }
+        Page<ReviewDTO> page = reviewService.pageQueryWithDetails(pageQueryDTO);
+        return R.success(page);
     }
 
     /**
@@ -68,19 +63,15 @@ public class ReviewController {
      * @return 分页结果
      */
     @GetMapping("/userPage")
+    @RequireRoles({"customer"})
     public R<Map<String, Object>> userPage(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
         log.info("查询用户评价，页码：{}，每页记录数：{}，开始日期：{}，结束日期：{}", page, pageSize, startDate, endDate);
-        try {
-            Long userId = BaseContext.getCurrentId();
-            return reviewService.getUserPageList(page, pageSize, userId, startDate, endDate);
-        } catch (Exception e) {
-            log.error("查询用户评价列表异常", e);
-            return R.error("查询用户评价列表失败");
-        }
+        Long userId = BaseContext.getCurrentId();
+        return reviewService.getUserPageList(page, pageSize, userId, startDate, endDate);
     }
 
     /**
@@ -89,15 +80,11 @@ public class ReviewController {
      * @return 评价信息
      */
     @GetMapping("/{id}")
+    @RequireRoles({"admin", "employee"})
     public R<Review> getById(@PathVariable Long id) {
         log.info("根据ID查询评价：{}", id);
-        try {
-            Review review = reviewService.getById(id);
-            return R.success(review);
-        } catch (Exception e) {
-            log.error("查询评价详情异常", e);
-            return R.error("查询评价详情失败");
-        }
+        Review review = reviewService.getById(id);
+        return R.success(review);
     }
 
     /**
@@ -106,6 +93,7 @@ public class ReviewController {
      * @return 结果
      */
     @PutMapping
+    @RequireRoles({"customer"})
     public R<String> update(@RequestBody Review review) {
         log.info("更新评价：{}", review.getId());
         try {
@@ -135,6 +123,7 @@ public class ReviewController {
      * @return 结果
      */
     @PutMapping("/reply")
+    @RequireRoles({"admin", "employee"})
     public R<String> reply(@RequestBody Review review) {
         log.info("回复评价：{}", review.getId());
         try {
@@ -163,6 +152,7 @@ public class ReviewController {
      * @return 结果
      */
     @DeleteMapping("/{id}")
+    @RequireRoles({"admin", "employee"})
     public R<String> delete(@PathVariable Long id) {
         log.info("删除评价：{}", id);
         boolean result = reviewService.removeById(id);
@@ -175,15 +165,11 @@ public class ReviewController {
      * @return 评论列表
      */
     @GetMapping("/order/{orderId}")
+    @RequireRoles({"admin", "employee", "customer"})
     public R<List<Review>> getByOrderId(@PathVariable Long orderId) {
         log.info("根据订单ID查询评论，订单ID：{}", orderId);
-        try {
-            List<Review> list = reviewService.getByOrderId(orderId);
-            return R.success(list);
-        } catch (Exception e) {
-            log.error("查询订单评论异常", e);
-            return R.error("查询订单评论失败");
-        }
+        List<Review> list = reviewService.getByOrderId(orderId);
+        return R.success(list);
     }
 
     /**
@@ -197,6 +183,7 @@ public class ReviewController {
      * @return 分页结果
      */
     @GetMapping("/list")
+    @RequireRoles({"admin", "employee"})
     public R<Page<ReviewDTO>> list(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
@@ -205,24 +192,18 @@ public class ReviewController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
         log.info("查询评价列表，页码：{}，每页记录数：{}，内容：{}，评分：{}，开始日期：{}，结束日期：{}", page, pageSize, content, rating, startDate, endDate);
-        try {
-            PageQueryDTO pageQueryDTO = new PageQueryDTO();
-            pageQueryDTO.setPage(page);
-            pageQueryDTO.setPageSize(pageSize);
-            pageQueryDTO.setKeyword(content);
-            pageQueryDTO.setRating(rating);
-            if (startDate != null) {
-                pageQueryDTO.setBeginTime(startDate + " 00:00:00");
-            }
-            if (endDate != null) {
-                pageQueryDTO.setEndTime(endDate + " 23:59:59");
-            }
-            ReviewServiceImpl reviewServiceImpl = (ReviewServiceImpl) reviewService;
-            Page<ReviewDTO> pageResult = reviewServiceImpl.pageQueryWithDetails(pageQueryDTO);
-            return R.success(pageResult);
-        } catch (Exception e) {
-            log.error("查询评价列表异常", e);
-            return R.error("查询评价列表失败");
+        PageQueryDTO pageQueryDTO = new PageQueryDTO();
+        pageQueryDTO.setPage(page);
+        pageQueryDTO.setPageSize(pageSize);
+        pageQueryDTO.setKeyword(content);
+        pageQueryDTO.setRating(rating);
+        if (startDate != null) {
+            pageQueryDTO.setBeginTime(startDate + " 00:00:00");
         }
+        if (endDate != null) {
+            pageQueryDTO.setEndTime(endDate + " 23:59:59");
+        }
+        Page<ReviewDTO> pageResult = reviewService.pageQueryWithDetails(pageQueryDTO);
+        return R.success(pageResult);
     }
 } 

@@ -69,6 +69,7 @@ public class ReviewServiceImpl extends ServiceImpl<ReviewMapper, Review> impleme
      * @param pageQueryDTO 分页查询参数
      * @return 评价分页结果
      */
+    @Override
     public Page<ReviewDTO> pageQueryWithDetails(PageQueryDTO pageQueryDTO) {
         log.info("分页查询评价列表，参数：{}", pageQueryDTO);
         

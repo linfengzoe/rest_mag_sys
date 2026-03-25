@@ -2,6 +2,7 @@ package com.rest_mag_sys.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rest_mag_sys.common.R;
+import com.rest_mag_sys.common.RequireRoles;
 import com.rest_mag_sys.dto.PageQueryDTO;
 import com.rest_mag_sys.entity.TableInfo;
 import com.rest_mag_sys.service.TableInfoService;
@@ -31,18 +32,11 @@ public class TableInfoController {
      * @return 结果
      */
     @PostMapping
+    @RequireRoles({"admin", "employee"})
     public R<String> save(@RequestBody TableInfo tableInfo) {
         log.info("新增桌位：{}", tableInfo.getName());
-        try {
-            tableInfoService.save(tableInfo);
-            return R.success("新增桌位成功");
-        } catch (org.springframework.dao.DuplicateKeyException dupEx) {
-            log.error("新增桌位失败，名称重复", dupEx);
-            return R.error("餐桌名称已存在，请更换名称");
-        } catch (Exception e) {
-            log.error("新增桌位异常", e);
-            return R.error("新增桌位失败");
-        }
+        tableInfoService.save(tableInfo);
+        return R.success("新增桌位成功");
     }
 
     /**
@@ -54,18 +48,14 @@ public class TableInfoController {
      * @return 分页结果
      */
     @GetMapping("/page")
+    @RequireRoles({"admin", "employee"})
     public R<Map<String, Object>> page(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
         log.info("分页查询桌位，页码：{}，每页记录数：{}，状态：{}", page, pageSize, status);
-        try {
-            return tableInfoService.getPageList(page, pageSize, name, status);
-        } catch (Exception e) {
-            log.error("查询桌位列表异常", e);
-            return R.error("查询桌位列表失败");
-        }
+        return tableInfoService.getPageList(page, pageSize, name, status);
     }
 
     /**
@@ -74,15 +64,11 @@ public class TableInfoController {
      * @return 桌位信息
      */
     @GetMapping("/{id}")
+    @RequireRoles({"admin", "employee"})
     public R<TableInfo> getById(@PathVariable Long id) {
         log.info("根据ID查询桌位：{}", id);
-        try {
-            TableInfo tableInfo = tableInfoService.getById(id);
-            return R.success(tableInfo);
-        } catch (Exception e) {
-            log.error("查询桌位详情异常", e);
-            return R.error("查询桌位详情失败");
-        }
+        TableInfo tableInfo = tableInfoService.getById(id);
+        return R.success(tableInfo);
     }
 
     /**
@@ -91,6 +77,7 @@ public class TableInfoController {
      * @return 结果
      */
     @PutMapping
+    @RequireRoles({"admin", "employee"})
     public R<String> update(@RequestBody TableInfo tableInfo) {
         log.info("修改桌位：{}", tableInfo.getId());
         log.info("修改桌位详细信息：{}", tableInfo);
@@ -126,8 +113,6 @@ public class TableInfoController {
             }
         } catch (Exception e) {
             log.error("修改桌位异常，ID：{}，错误信息：{}", tableInfo.getId(), e.getMessage(), e);
-            // 打印完整的异常栈
-            e.printStackTrace();
             return R.error("修改桌位失败：" + e.getMessage());
         }
     }
@@ -138,15 +123,11 @@ public class TableInfoController {
      * @return 结果
      */
     @DeleteMapping("/{id}")
+    @RequireRoles({"admin", "employee"})
     public R<String> delete(@PathVariable Long id) {
         log.info("删除桌位：{}", id);
-        try {
-            tableInfoService.removeById(id);
-            return R.success("删除桌位成功");
-        } catch (Exception e) {
-            log.error("删除桌位异常", e);
-            return R.error("删除桌位失败");
-        }
+        tableInfoService.removeById(id);
+        return R.success("删除桌位成功");
     }
 
     /**
@@ -155,15 +136,11 @@ public class TableInfoController {
      * @return 分页结果
      */
     @GetMapping("/list")
+    @RequireRoles({"admin", "employee"})
     public R<Page<TableInfo>> list(PageQueryDTO params) {
         log.info("分页查询桌位，参数：{}", params);
-        try {
-            Page<TableInfo> page = tableInfoService.pageQuery(params);
-            return R.success(page);
-        } catch (Exception e) {
-            log.error("查询桌位列表异常", e);
-            return R.error("查询桌位列表失败");
-        }
+        Page<TableInfo> page = tableInfoService.pageQuery(params);
+        return R.success(page);
     }
 
     /**
@@ -173,6 +150,7 @@ public class TableInfoController {
      * @return 结果
      */
     @PutMapping("/status/{id}")
+    @RequireRoles({"admin", "employee"})
     public R<String> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         log.info("更新桌位状态：{}，状态：{}", id, status);
         
@@ -231,14 +209,10 @@ public class TableInfoController {
      * @return 可用桌位列表
      */
     @GetMapping("/available")
+    @RequireRoles({"admin", "employee", "customer"})
     public R<List<TableInfo>> getAvailableTables() {
         log.info("获取可用桌位列表");
-        try {
-            List<TableInfo> availableTables = tableInfoService.getAvailableTables();
-            return R.success(availableTables);
-        } catch (Exception e) {
-            log.error("获取可用桌位列表异常", e);
-            return R.error("获取可用桌位列表失败");
-        }
+        List<TableInfo> availableTables = tableInfoService.getAvailableTables();
+        return R.success(availableTables);
     }
 } 
