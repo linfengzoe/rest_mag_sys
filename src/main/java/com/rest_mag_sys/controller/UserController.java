@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import javax.validation.Valid;
+
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
@@ -63,7 +65,7 @@ public class UserController {
      * @return 登录结果
      */
     @PostMapping("/login")
-    public R<Map<String, Object>> login(@RequestBody LoginDTO loginDTO) {
+    public R<Map<String, Object>> login(@Valid @RequestBody LoginDTO loginDTO) {
         log.info("用户登录：{}", loginDTO.getUsername());
         UserDTO user = userService.login(loginDTO);
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
@@ -84,7 +86,7 @@ public class UserController {
      * @return 注册结果
      */
     @PostMapping("/register")
-    public R<String> register(@RequestBody UserDTO userDTO) {
+    public R<String> register(@Valid @RequestBody UserDTO userDTO) {
         log.info("用户注册：{}", userDTO.getUsername());
         boolean result = userService.register(userDTO);
         return result ? R.success("注册成功") : R.error("注册失败");

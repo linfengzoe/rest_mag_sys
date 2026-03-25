@@ -12,6 +12,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * JWT令牌拦截器
@@ -31,6 +33,11 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String requestPath = request.getRequestURI();
         log.info("JWT拦截器处理请求: {} {}", request.getMethod(), requestPath);
+
+        // 放行CORS预检请求
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
         
         // 获取请求头中的token
         String authHeader = request.getHeader("Authorization");
@@ -38,22 +45,25 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
         // 如果token为空，返回错误
         if (!StringUtils.hasLength(authHeader)) {
             log.warn("Authorization头为空，请求路径: {}", requestPath);
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            writeUnauthorized(response, "未登录或登录已过期");
+            return false;
+        }
+
+        if (!authHeader.startsWith("Bearer ")) {
+            log.warn("Authorization头格式非法，请求路径: {}", requestPath);
+            writeUnauthorized(response, "登录凭证格式错误");
             return false;
         }
 
         // 处理Bearer前缀
-        String token = authHeader;
-        if (authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-        }
+        String token = authHeader.substring(7);
 
         try {
             // 解析token
             Claims claims = jwtUtil.parseToken(token);
             if (claims == null || jwtUtil.isTokenExpired(claims)) {
                 log.error("Token已过期或无效，请求路径: {}", requestPath);
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                writeUnauthorized(response, "登录已过期，请重新登录");
                 return false;
             }
 
@@ -67,8 +77,19 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
             return true;
         } catch (Exception e) {
             log.error("JWT解析异常，请求路径: {}", requestPath, e);
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            writeUnauthorized(response, "登录状态无效，请重新登录");
             return false;
+        }
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType("application/json;charset=UTF-8");
+        try {
+            response.getWriter().write("{\"code\":401,\"msg\":\"" + message + "\"}");
+        } catch (IOException e) {
+            log.error("写入401响应失败", e);
         }
     }
 
