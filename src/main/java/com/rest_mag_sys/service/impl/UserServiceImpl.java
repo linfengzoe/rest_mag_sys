@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rest_mag_sys.common.CustomException;
-import com.rest_mag_sys.common.JwtUtil;
 import com.rest_mag_sys.common.R;
 import com.rest_mag_sys.dto.LoginDTO;
 import com.rest_mag_sys.dto.PageQueryDTO;
@@ -31,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+
+    private static final Pattern MD5_PATTERN = Pattern.compile("^[a-fA-F0-9]{32}$");
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -74,10 +76,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new CustomException("用户名不存在");
         }
 
-        // 2. 密码比对
-        // 对页面提交的密码进行md5加密处理
-        String password = DigestUtils.md5DigestAsHex(loginDTO.getPassword().getBytes());
-        if (!user.getPassword().equals(password)) {
+        // 2. 密码比对（兼容历史MD5，验证成功后自动升级为BCrypt）
+        if (!matchesPassword(loginDTO.getPassword(), user)) {
             throw new CustomException("密码错误");
         }
 
@@ -108,9 +108,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new CustomException("用户名已存在");
         }
 
-        // 2. 密码加密
-        String password = DigestUtils.md5DigestAsHex(user.getPassword().getBytes());
-        user.setPassword(password);
+        // 2. 密码加密（BCrypt）
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         // 3. 角色格式化处理，统一转换为小写
         if (user.getRole() != null) {
@@ -150,9 +149,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         User user = new User();
         BeanUtils.copyProperties(userDTO, user);
 
-        // 3. 密码加密
-        String password = DigestUtils.md5DigestAsHex(user.getPassword().getBytes());
-        user.setPassword(password);
+        // 3. 密码加密（BCrypt）
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         // 4. 角色格式化处理，统一转换为小写
         if (user.getRole() != null) {
@@ -328,10 +326,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         User user = new User();
         BeanUtils.copyProperties(userDTO, user);
 
-        // 2.1 若请求中包含密码字段，则进行MD5加密后再存储，防止明文落库
+        // 2.1 若请求中包含密码字段，则进行BCrypt加密后再存储
         if (StringUtils.isNotBlank(userDTO.getPassword())) {
-            String encryptedPwd = DigestUtils.md5DigestAsHex(userDTO.getPassword().getBytes());
-            user.setPassword(encryptedPwd);
+            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         }
 
         // 3. 角色格式化处理
@@ -489,17 +486,52 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new CustomException("用户不存在");
         }
         
-        // 2. 检查旧密码是否正确
-        String oldPasswordMd5 = DigestUtils.md5DigestAsHex(oldPassword.getBytes());
-        if (!user.getPassword().equals(oldPasswordMd5)) {
+        // 2. 检查旧密码是否正确（兼容历史MD5）
+        if (!matchesPasswordWithoutUpgrade(oldPassword, user.getPassword())) {
             throw new CustomException("旧密码错误");
         }
         
-        // 3. 更新密码
-        String newPasswordMd5 = DigestUtils.md5DigestAsHex(newPassword.getBytes());
-        user.setPassword(newPasswordMd5);
+        // 3. 更新密码（BCrypt）
+        user.setPassword(passwordEncoder.encode(newPassword));
         
         return this.updateById(user);
+    }
+
+    private boolean matchesPassword(String rawPassword, User user) {
+        String storedPassword = user.getPassword();
+        if (storedPassword == null) {
+            return false;
+        }
+        if (passwordEncoder.matches(rawPassword, storedPassword)) {
+            return true;
+        }
+        if (isLegacyMd5(storedPassword)) {
+            String legacyMd5 = DigestUtils.md5DigestAsHex(rawPassword.getBytes());
+            if (storedPassword.equalsIgnoreCase(legacyMd5)) {
+                user.setPassword(passwordEncoder.encode(rawPassword));
+                this.updateById(user);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean matchesPasswordWithoutUpgrade(String rawPassword, String storedPassword) {
+        if (storedPassword == null) {
+            return false;
+        }
+        if (passwordEncoder.matches(rawPassword, storedPassword)) {
+            return true;
+        }
+        if (isLegacyMd5(storedPassword)) {
+            String legacyMd5 = DigestUtils.md5DigestAsHex(rawPassword.getBytes());
+            return storedPassword.equalsIgnoreCase(legacyMd5);
+        }
+        return false;
+    }
+
+    private boolean isLegacyMd5(String passwordHash) {
+        return MD5_PATTERN.matcher(passwordHash).matches();
     }
 
     /**

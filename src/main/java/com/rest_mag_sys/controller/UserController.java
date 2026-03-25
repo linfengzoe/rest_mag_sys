@@ -2,7 +2,6 @@ package com.rest_mag_sys.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rest_mag_sys.common.BaseContext;
-import com.rest_mag_sys.common.CustomException;
 import com.rest_mag_sys.common.JwtUtil;
 import com.rest_mag_sys.common.R;
 import com.rest_mag_sys.dto.LoginDTO;
@@ -17,14 +16,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,43 +65,17 @@ public class UserController {
     @PostMapping("/login")
     public R<Map<String, Object>> login(@RequestBody LoginDTO loginDTO) {
         log.info("用户登录：{}", loginDTO.getUsername());
+        UserDTO user = userService.login(loginDTO);
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
 
-        try {
-            // 1. 根据用户名查询用户
-            User user = userService.getByUsername(loginDTO.getUsername());
-            log.info("查询用户结果：{}", user);
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", user.getId());
+        map.put("username", user.getUsername());
+        map.put("name", user.getName());
+        map.put("role", user.getRole());
+        map.put("token", token);
 
-            // 2. 判断用户是否存在
-            if (user == null) {
-                log.warn("用户名不存在：{}", loginDTO.getUsername());
-                return R.error("用户名不存在");
-            }
-
-            // 3. 密码比对 - 对用户输入的密码进行MD5加密后与数据库中的密码比对
-            String encryptedPassword = org.springframework.util.DigestUtils.md5DigestAsHex(loginDTO.getPassword().getBytes());
-            log.info("密码比对：{} vs {} (加密后: {})", user.getPassword(), loginDTO.getPassword(), encryptedPassword);
-            if (!user.getPassword().equals(encryptedPassword)) {
-                log.warn("密码错误：{}", loginDTO.getUsername());
-                return R.error("密码错误");
-            }
-
-            // 4. 生成JWT令牌
-            String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
-            log.info("生成JWT令牌：{}", token);
-
-            // 5. 将用户信息返回给前端
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", user.getId());
-            map.put("username", user.getUsername());
-            map.put("name", user.getName());
-            map.put("role", user.getRole());
-            map.put("token", token);
-
-            return R.success(map);
-        } catch (Exception e) {
-            log.error("登录异常", e);
-            return R.error("登录异常：" + e.getMessage());
-        }
+        return R.success(map);
     }
 
     /**
@@ -256,25 +227,8 @@ public class UserController {
     @PostMapping
     public R<String> save(@RequestBody UserDTO userDTO) {
         log.info("添加用户：{}", userDTO.getUsername());
-
-        // 检查用户名是否已存在
-        User existUser = userService.getByUsername(userDTO.getUsername());
-        if (existUser != null) {
-            return R.error("用户名已存在");
-        }
-
-        User user = new User();
-        BeanUtils.copyProperties(userDTO, user);
-
-        // 密码加密
-        String password = DigestUtils.md5DigestAsHex(user.getPassword().getBytes());
-        user.setPassword(password);
-
-        // 设置默认状态为启用
-        user.setStatus(1);
-
-        userService.save(user);
-        return R.success("添加成功");
+        boolean result = userService.register(userDTO);
+        return result ? R.success("添加成功") : R.error("添加失败");
     }
 
     /**
@@ -368,7 +322,6 @@ public class UserController {
         try {
             file.transferTo(dest);
         } catch (Exception e) {
-            e.printStackTrace();
             log.error("头像保存失败", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("文件保存失败: " + e.getMessage());
         }

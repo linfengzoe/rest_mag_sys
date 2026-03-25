@@ -1,4 +1,4 @@
-spring.sql.init.mode=embedded-- 删除所有表（按外键依赖逆序删除）
+-- 删除所有表（按外键依赖逆序删除）
 DROP TABLE IF EXISTS review;
 DROP TABLE IF EXISTS order_detail;
 DROP TABLE IF EXISTS orders;

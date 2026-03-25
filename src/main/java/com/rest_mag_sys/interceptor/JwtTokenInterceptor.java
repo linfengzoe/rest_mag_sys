@@ -28,13 +28,12 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
      * 拦截请求，验证令牌
      */
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String requestPath = request.getRequestURI();
         log.info("JWT拦截器处理请求: {} {}", request.getMethod(), requestPath);
         
         // 获取请求头中的token
         String authHeader = request.getHeader("Authorization");
-        log.info("获取到的Authorization头: {}", authHeader != null ? "***" + authHeader.substring(Math.max(0, authHeader.length() - 10)) : "null");
 
         // 如果token为空，返回错误
         if (!StringUtils.hasLength(authHeader)) {
@@ -60,10 +59,7 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
 
             // 获取用户ID并存入ThreadLocal
             Long userId = Long.valueOf(claims.get("userId").toString());
-            String username = claims.get("username").toString();
-            String role = claims.get("role").toString();
-            
-            log.info("JWT解析成功，用户ID: {}, 用户名: {}, 角色: {}, 请求路径: {}", userId, username, role, requestPath);
+            log.info("JWT解析成功，请求路径: {}", requestPath);
             
             BaseContext.setCurrentId(userId);
             
